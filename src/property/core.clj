@@ -3,6 +3,44 @@
   (:import [java.net URL]))
 
 
+(defn- url?
+  [value]
+  (try
+    (io/as-url value)
+    true
+    (catch Throwable _
+      false)))
+
+
+(defn- correct-type?
+  [value prop-type]
+  (case prop-type
+    boolean (isa? Boolean (type value))
+    int     (integer? value)
+    String  (string? value)
+    URL     (url? value)
+            true))
+
+
+(defn- ctor-fn
+  [prop-type]
+  (case prop-type
+    boolean `identity
+    int     `identity
+    String  `identity
+    URL     `io/as-url
+            `identity))
+
+
+(defn- implicit-default
+  [prop-type]
+  (case prop-type
+    boolean false
+    int     0
+    String  ""
+            nil))
+
+
 (defn- determine-type
   [fn-sig]
   (if-let [tag (:tag fn-sig)]
@@ -10,29 +48,11 @@
     'String))
 
 
-(defn- ctor-fn
-  [prop-type]
-  (case prop-type
-    Boolean `boolean
-    Integer `int
-    String  `str
-    URL     `io/as-url
-            `identity))
-
-
 (defn- validate-value
   [value prop-type]
-  (let [conv (eval (ctor-fn prop-type))]
-    (conv value)
-    value))
-
-
-(defn- type-default
-  [prop-type]
-  (case prop-type
-    Boolean false
-    String  ""
-            nil))
+  (if (correct-type? value prop-type)
+    value
+    (throw (RuntimeException. (str value "does not have type" prop-type)))))
 
 
 (defn- determine-default
@@ -43,7 +63,7 @@
     (cond
       cfg-val     (validate-value cfg-val prop-type)
       default-val (validate-value default-val prop-type)
-      :else       (type-default prop-type))))
+      :else       (implicit-default prop-type))))
 
 
 (defn- prep-fn
