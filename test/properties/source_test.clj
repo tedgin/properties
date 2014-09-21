@@ -1,6 +1,6 @@
-(ns property.source-test
+(ns properties.source-test
   (:use [midje.sweet]
-        [property.core])
+        [properties.core])
   (:require [clojure.java.io :as io])
   (:import [java.net URL]
            [java.util Properties]))

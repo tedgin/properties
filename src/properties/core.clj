@@ -1,4 +1,4 @@
-(ns property.core
+(ns properties.core
   (:require [clojure.java.io :as io])
   (:import [clojure.lang IPersistentMap]
            [java.io Reader]
