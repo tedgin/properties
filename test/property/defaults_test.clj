@@ -1,4 +1,4 @@
-(ns property.core-test
+(ns property.defaults-test
   (:use [midje.sweet]
         [property.core])
   (:require [clojure.java.io :as io])

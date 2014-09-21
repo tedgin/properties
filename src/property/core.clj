@@ -1,6 +1,9 @@
 (ns property.core
   (:require [clojure.java.io :as io])
-  (:import [java.net URL]))
+  (:import [clojure.lang IPersistentMap]
+           [java.io Reader]
+           [java.net URL]
+           [java.util Properties]))
 
 
 (defn- url?
@@ -8,8 +11,15 @@
   (try
     (io/as-url value)
     true
-    (catch Throwable _
-      false)))
+    (catch Throwable _ false)))
+
+
+(defn- to-code
+  [prop-type value]
+  (when-not (nil? value)
+    (case prop-type
+      URL (str value)
+          value)))
 
 
 (defn- correct-type?
@@ -43,9 +53,7 @@
 
 (defn- determine-type
   [fn-sig]
-  (if-let [tag (:tag fn-sig)]
-    tag
-    'String))
+  (get fn-sig :tag 'String))
 
 
 (defn- validate-value
@@ -55,26 +63,32 @@
     (throw (RuntimeException. (str value "does not have type" prop-type)))))
 
 
-(defn- determine-default
+(defn- property
+  [fn-sig]
+  (when-let [p (:property fn-sig)] (name p)))
+
+
+(defn- determine-code-value
   [fn-sig cfg-map]
-  (let [cfg-val     (get cfg-map (:property fn-sig))
+  (let [prop-type   (determine-type fn-sig)
+        cfg-val     (get cfg-map (property fn-sig))
         default-val (:default fn-sig)
-        prop-type   (determine-type fn-sig)]
-    (cond
-      cfg-val     (validate-value cfg-val prop-type)
-      default-val (validate-value default-val prop-type)
-      :else       (implicit-default prop-type))))
+        valid-val   (cond
+                      cfg-val     (validate-value cfg-val prop-type)
+                      default-val (validate-value default-val prop-type)
+                      :else       (implicit-default prop-type))]
+    (to-code prop-type valid-val)))
 
 
 (defn- prep-fn
   [sig cfg-map]
   (let [fname  (:name sig)
         constr (ctor-fn (determine-type sig))
-        value  (determine-default sig cfg-map)]
+        value  (determine-code-value sig cfg-map)]
     `((~fname [_#] (~constr ~value)))))
 
 
-(defn ->from-map
+(defn- protocol-from-map
   [protocol cfg-map]
   (let [protoSym (.sym (:var protocol))
         prefix   `(reify ~protoSym)
@@ -82,14 +96,49 @@
     (eval (apply concat prefix fn-defs))))
 
 
+(defn- protocol-from-properties
+  [protocol props]
+  (protocol-from-map protocol (into {} props)))
+
+
 (defn ->default
-  "Instantiates an object that implements the given protocol where each function returns its
-   default value.
+  "Instantiates a properties object that implements the given protocol where each function returns
+   its default value.
 
    Params:
      protocol - the protocol mapping
 
    Returns:
-     It returns the object."
+     It returns the properties object."
   [protocol]
-  (->from-map protocol {}))
+  (protocol-from-map protocol {}))
+
+
+(defmulti ->from
+  "Instantiates a properties object that implements the given protocol where the given source is
+   referenced for the function return values. If the function has a :property metadata, the source
+   is inspected for that property. If found, the function will use the corresponding value.
+   Otherwise, it will use the default value.
+
+   Params:
+     protocol - the protocol mapping
+     source   - the source of the property values. It may be a map, a java.util.Properties object
+                or anything clojure.java.io/reader can resolve.
+
+   Returns:
+     It returns the properties object."
+  (fn [protocol source] (type source)))
+
+(defmethod ->from IPersistentMap
+  [protocol properties]
+  (letfn [(str-key [[k v]] [(name k) v])]
+    (protocol-from-map protocol (apply hash-map (mapcat str-key properties)))))
+
+(defmethod ->from Properties
+  [protocol properties]
+  (protocol-from-properties protocol properties))
+
+(defmethod ->from :default
+  [protocol source]
+  (with-open [rdr (io/reader source)]
+    (protocol-from-properties protocol (doto (Properties.) (.load rdr)))))
