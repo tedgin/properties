@@ -40,11 +40,8 @@
   (^{:default 42}
    ^int good-int [_])
 
-  (^{:default "http://localhost"}
+  (^{:default (io/as-url "http://localhost")}
    ^URL good-url [_]))
-
-(fact "a protocol with functions having default values of the correct type will be instantiated"
-  (->default GoodDefaults) => irrelevant)
 
 (facts "default values are correct"
   (let [props (->default GoodDefaults)]

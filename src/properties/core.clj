@@ -1,66 +1,71 @@
 (ns properties.core
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [properties.type-support :as types])
   (:import [clojure.lang IPersistentMap]
            [java.io Reader]
            [java.net URL]
            [java.util Properties]))
 
 
-(defn- url?
-  [value]
-  (try
-    (io/as-url value)
-    true
-    (catch Throwable _ false)))
+; String support
+
+(defmethod types/implicit-default String  [_] "")
+
+(defmethod types/type? String [_ value] (string? value))
 
 
-(defn- to-code
-  [prop-type value]
-  (when-not (nil? value)
-    (case prop-type
-      URL (str value)
-          value)))
+; Boolean support
+
+(defmethod types/implicit-default Boolean [_] false)
+
+(defmethod types/type? Boolean [_ value] (isa? Boolean (type value)))
+
+(defmethod types/from-str-fn Boolean [_] 'boolean)
 
 
-(defn- correct-type?
-  [value prop-type]
-  (case prop-type
-    boolean (isa? Boolean (type value))
-    int     (integer? value)
-    String  (string? value)
-    URL     (url? value)
-            true))
+; Integer support
+
+(defmethod types/implicit-default Integer [_] 0)
+
+(defmethod types/type? Integer [_ value] (integer? value))
+
+(defmethod types/from-str-fn Integer [_] 'Integer/parseInt)
 
 
-(defn- ctor-fn
-  [prop-type]
-  (case prop-type
-    boolean `identity
-    int     `identity
-    String  `identity
-    URL     `io/as-url
-            `identity))
+; URL support
 
+(defmethod types/type? URL [_ value]
+  (boolean
+    (try
+      (io/as-url value)
+      (catch Throwable _))))
 
-(defn- implicit-default
-  [prop-type]
-  (case prop-type
-    boolean false
-    int     0
-    String  ""
-            nil))
+(defmethod types/from-str-fn URL [_] 'clojure.java.io/as-url)
+
+(defmethod types/as-code URL [url] (str url))
 
 
 (defn- determine-type
   [fn-sig]
-  (get fn-sig :tag 'String))
+  (let [type-sym (:tag fn-sig)]
+    (cond
+      (nil? type-sym)       String
+      (= type-sym 'boolean) Boolean
+      (= type-sym 'int)     Integer
+      :else                 (ns-resolve *ns* type-sym))))
 
 
 (defn- validate-value
   [value prop-type]
-  (if (correct-type? value prop-type)
-    value
-    (throw (RuntimeException. (str value "does not have type" prop-type)))))
+  (let [bad #(throw (RuntimeException. (str value " does not have type " prop-type)))]
+    (if (string? value)
+      (try
+        ((types/from-str-fn prop-type) value)
+        (catch Throwable _
+          (bad)))
+      (when-not (types/type? prop-type value)
+        (bad)))
+    value))
 
 
 (defn- property
@@ -69,23 +74,29 @@
 
 
 (defn- determine-code-value
-  [fn-sig cfg-map]
-  (let [prop-type   (determine-type fn-sig)
-        cfg-val     (get cfg-map (property fn-sig))
-        default-val (:default fn-sig)
-        valid-val   (cond
-                      cfg-val     (validate-value cfg-val prop-type)
-                      default-val (validate-value default-val prop-type)
-                      :else       (implicit-default prop-type))]
-    (to-code prop-type valid-val)))
+  [fn-sig prop-type cfg-map]
+  (let [cfg-val     (eval (get cfg-map (property fn-sig)))
+        default-val (eval (:default fn-sig))]
+    (cond
+      cfg-val     (validate-value cfg-val prop-type)
+      default-val (validate-value default-val prop-type)
+      :else       (types/implicit-default prop-type))))
+
+
+(defn- ctor-fn
+  [prop-type value]
+  (when (string? value)
+    (types/from-str-fn prop-type)))
 
 
 (defn- prep-fn
   [sig cfg-map]
-  (let [fname  (:name sig)
-        constr (ctor-fn (determine-type sig))
-        value  (determine-code-value sig cfg-map)]
-    `((~fname [_#] (~constr ~value)))))
+  (let [fname (:name sig)
+        ftype (determine-type sig)
+        value (types/as-code (determine-code-value sig ftype cfg-map))]
+    (if-let [constr (ctor-fn ftype value)]
+      `((~fname [_#] (~constr ~value)))
+      `((~fname [_#] ~value)))))
 
 
 (defn- protocol-from-map

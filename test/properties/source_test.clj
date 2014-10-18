@@ -81,12 +81,29 @@
 
 (defprotocol properties
   (^{:property "string"}
-   ^String property-string [_]))
+   ^String property-string [_])
+  (^{:property "boolean"}
+   ^boolean property-boolean [_])
+  (^{:property "int"}
+   ^int property-int [_])
+  (^{:property "url"}
+   ^URL property-url [_]))
 
-(fact "a java.util.Properties object can be used to instantiate a property object"
-  (let [src (doto (Properties.) (.setProperty "string" "string"))
+(facts "a java.util.Properties object can be used to instantiate a property object"
+  (let [src (doto (Properties.)
+              (.setProperty "string" "string")
+              (.setProperty "boolean" "true")
+              (.setProperty "int" "4")
+              (.setProperty "url" "http://localhost"))
         obj (->from properties src)]
-    (property-string obj) => (get src "string")))
+    (fact "a string value is correct"
+      (property-string obj) => "string")
+    (fact "a boolean value is correct"
+      (property-boolean obj) => true)
+    (fact "an int value is correct"
+      (property-int obj) => 4)
+    (fact "a URL value is correct"
+      (property-url obj) => (io/as-url "http://localhost"))))
 
 (fact "a property object can be instantiated from something clojure.java.io/reader can resolve"
   (let [src (char-array "string = string")
@@ -115,4 +132,3 @@
       (no-source obj) => "default")
     (fact "default is used when function has no associated property"
       (no-property obj) => "default")))
-
