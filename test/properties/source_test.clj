@@ -132,3 +132,19 @@
       (no-source obj) => "default")
     (fact "default is used when function has no associated property"
       (no-property obj) => "default")))
+
+
+(defprotocol base-properties
+  (^{:property :prefixed :default "default"}
+   prefixed [_])
+
+  (^{:property :unprefixed :default "default"}
+   unprefixed [_]))
+
+(facts "prefixes are correctly removed"
+  (let [src {:prefix.prefixed "source" :unprefixed "source"}
+        obj (->from base-properties src :prefix)]
+    (fact "a prefixed property name will have the prefix removed"
+      (prefixed obj) => "source")
+    (fact "an unprefixed property will use the default"
+      (unprefixed obj) => "default")))

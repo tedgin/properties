@@ -1,5 +1,6 @@
 (ns properties.core
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [properties.type-support :as types])
   (:import [clojure.lang IPersistentMap]
            [java.io Reader]
@@ -99,17 +100,26 @@
       `((~fname [_#] ~value)))))
 
 
+(defn- remove-prefix
+  [prefix [prop value]]
+  (let [pattern (re-pattern (str "^" (name prefix) "\\.(.*)$"))]
+    (when-let [[_ base-prop] (re-matches pattern prop)]
+      [base-prop value])))
+
+
 (defn- protocol-from-map
-  [protocol cfg-map]
-  (let [protoSym (.sym (:var protocol))
-        prefix   `(reify ~protoSym)
+  [protocol cfg-map prefix]
+  (let [cfg-map  (if prefix
+                   (apply hash-map (mapcat #(remove-prefix prefix %) cfg-map))
+                   cfg-map)
+        protoSym (.sym (:var protocol))
         fn-defs  (map #(prep-fn % cfg-map) (vals (:sigs protocol)))]
-    (eval (apply concat prefix fn-defs))))
+    (eval (apply concat `(reify ~protoSym) fn-defs))))
 
 
 (defn- protocol-from-properties
-  [protocol props]
-  (protocol-from-map protocol (into {} props)))
+  [protocol props prefix]
+  (protocol-from-map protocol (into {} props) prefix))
 
 
 (defn ->default
@@ -122,7 +132,13 @@
    Returns:
      It returns the properties object."
   [protocol]
-  (protocol-from-map protocol {}))
+  (protocol-from-map protocol {} nil))
+
+
+(defn- load-properties
+  [source]
+  (with-open [rdr (io/reader source)]
+    (doto (Properties.) (.load rdr))))
 
 
 (defmulti ->from
@@ -135,21 +151,23 @@
      protocol - the protocol mapping
      source   - the source of the property values. It may be a map, a java.util.Properties object
                 or anything clojure.java.io/reader can resolve.
+     prefix   - (OPTIONAL) If this parameter is provided, the source will be filtered for
+                properties whose names begin with `<prefix>.`. The dotted prefix will then be
+                removed from the property names.
 
    Returns:
      It returns the properties object."
-  (fn [protocol source] (type source)))
+  (fn [protocol source & [prefix]] (type source)))
 
 (defmethod ->from IPersistentMap
-  [protocol properties]
+  [protocol properties & [prefix]]
   (letfn [(str-key [[k v]] [(name k) v])]
-    (protocol-from-map protocol (apply hash-map (mapcat str-key properties)))))
+    (protocol-from-map protocol (apply hash-map (mapcat str-key properties)) prefix)))
 
 (defmethod ->from Properties
-  [protocol properties]
-  (protocol-from-properties protocol properties))
+  [protocol properties & [prefix]]
+  (protocol-from-properties protocol properties prefix))
 
 (defmethod ->from :default
-  [protocol source]
-  (with-open [rdr (io/reader source)]
-    (protocol-from-properties protocol (doto (Properties.) (.load rdr)))))
+  [protocol source & [prefix]]
+  (protocol-from-properties protocol (load-properties source) prefix))
