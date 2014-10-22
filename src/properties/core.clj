@@ -2,8 +2,9 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [properties.type-support :as types])
-  (:import [clojure.lang IPersistentMap]
+  (:import [clojure.lang BigInt IPersistentMap]
            [java.io Reader]
+           [java.math BigInteger]
            [java.net URL]
            [java.util Properties]))
 
@@ -24,13 +25,14 @@
 (defmethod types/from-str-fn Boolean [_] 'boolean)
 
 
-; Integer support
+; BigInt support
 
-(defmethod types/implicit-default Integer [_] 0)
+(defmethod types/implicit-default BigInt [_] 0)
 
-(defmethod types/type? Integer [_ value] (integer? value))
+(defmethod types/type? BigInt [_ value] (integer? value))
 
-(defmethod types/from-str-fn Integer [_] 'Integer/parseInt)
+(defmethod types/from-str-fn BigInt [_]
+  (fn [str-val] (BigInt/fromBigInteger (BigInteger. str-val))))
 
 
 ; URL support
@@ -52,7 +54,6 @@
     (cond
       (nil? type-sym)       String
       (= type-sym 'boolean) Boolean
-      (= type-sym 'int)     Integer
       :else                 (ns-resolve *ns* type-sym))))
 
 

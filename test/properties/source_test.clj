@@ -2,7 +2,8 @@
   (:use [midje.sweet]
         [properties.core])
   (:require [clojure.java.io :as io])
-  (:import [java.net URL]
+  (:import [clojure.lang BigInt]
+           [java.net URL]
            [java.util Properties]))
 
 
@@ -14,7 +15,7 @@
    ^boolean str-property-boolean [_])
 
   (^{:property "int"}
-   ^int str-property-int [_])
+   ^BigInt str-property-int [_])
 
   (^{:property "url"}
    ^URL str-property-url [_]))
@@ -58,7 +59,7 @@
    ^boolean key-property-boolean [_])
 
   (^{:property :int}
-   ^int key-property-int [_])
+   ^BigInt key-property-int [_])
 
   (^{:property :url}
    ^URL key-property-url [_]))
@@ -85,7 +86,7 @@
   (^{:property "boolean"}
    ^boolean property-boolean [_])
   (^{:property "int"}
-   ^int property-int [_])
+   ^BigInt property-int [_])
   (^{:property "url"}
    ^URL property-url [_]))
 

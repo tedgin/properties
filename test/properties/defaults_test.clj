@@ -2,7 +2,8 @@
   (:use [midje.sweet]
         [properties.core])
   (:require [clojure.java.io :as io])
-  (:import [java.net URL]))
+  (:import [clojure.lang BigInt]
+           [java.net URL]))
 
 
 (defprotocol ImplicitType
@@ -15,7 +16,7 @@
 (defprotocol ImplicitDefaults
   (^String implicit-default-string [_])
   (^boolean implicit-default-bool [_])
-  (^int implicit-default-int [_])
+  (^BigInt implicit-default-int [_])
   (^URL implicit-default-url [_]))
 
 (facts "about implicit default values"
@@ -38,7 +39,7 @@
    ^boolean good-bool [_])
 
   (^{:default 42}
-   ^int good-int [_])
+   ^BigInt good-int [_])
 
   (^{:default (io/as-url "http://localhost")}
    ^URL good-url [_]))
@@ -75,7 +76,7 @@
 
 (defprotocol BadIntDefault
   (^{:default :bad}
-   ^int bad-int [_]))
+   ^BigInt bad-int [_]))
 
 (fact
   "a protocol with an int function having a default value that isn't an int will throw an exception on instantiation."
