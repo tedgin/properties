@@ -80,8 +80,6 @@
       :else       (types/implicit-default prop-type))))
 
 
-; TODO don't transition through string
-
 (defn- prep-fn
   [sig cfg-map]
   (let [fname (:name sig)
