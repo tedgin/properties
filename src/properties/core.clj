@@ -20,9 +20,7 @@
 
 (defmethod types/implicit-default Boolean [_] false)
 
-(defmethod types/type? Boolean [_ value] (isa? Boolean (type value)))
-
-(defmethod types/from-str-fn Boolean [_] 'boolean)
+(defmethod types/from-str Boolean [_ str-val] (boolean str-val))
 
 
 ; BigInt support
@@ -31,21 +29,14 @@
 
 (defmethod types/type? BigInt [_ value] (integer? value))
 
-(defmethod types/from-str-fn BigInt [_]
-  (fn [str-val] (BigInt/fromBigInteger (BigInteger. str-val))))
+(defmethod types/from-str BigInt [_ str-val] (BigInt/fromBigInteger (BigInteger. str-val)))
 
 
 ; URL support
 
-(defmethod types/type? URL [_ value]
-  (boolean
-    (try
-      (io/as-url value)
-      (catch Throwable _))))
+(defmethod types/from-str URL [_ str-val] (io/as-url str-val))
 
-(defmethod types/from-str-fn URL [_] 'clojure.java.io/as-url)
-
-(defmethod types/as-code URL [url] (str url))
+(defmethod types/as-code URL [url] `(io/as-url ~(str url)))
 
 
 (defn- determine-type
@@ -57,17 +48,21 @@
       :else                 (ns-resolve *ns* type-sym))))
 
 
-(defn- validate-value
+(defn- resolve-value
   [value prop-type]
   (let [bad #(throw (RuntimeException. (str value " does not have type " prop-type)))]
-    (if (string? value)
+    (cond
+      (types/type? prop-type value)
+      value
+
+      (string? value)
       (try
-        ((types/from-str-fn prop-type) value)
+        (types/from-str prop-type value)
         (catch Throwable _
           (bad)))
-      (when-not (types/type? prop-type value)
-        (bad)))
-    value))
+
+      :else
+      (bad))))
 
 
 (defn- property
@@ -80,25 +75,19 @@
   (let [cfg-val     (eval (get cfg-map (property fn-sig)))
         default-val (eval (:default fn-sig))]
     (cond
-      cfg-val     (validate-value cfg-val prop-type)
-      default-val (validate-value default-val prop-type)
+      cfg-val     (resolve-value cfg-val prop-type)
+      default-val (resolve-value default-val prop-type)
       :else       (types/implicit-default prop-type))))
 
 
-(defn- ctor-fn
-  [prop-type value]
-  (when (string? value)
-    (types/from-str-fn prop-type)))
-
+; TODO don't transition through string
 
 (defn- prep-fn
   [sig cfg-map]
   (let [fname (:name sig)
         ftype (determine-type sig)
         value (types/as-code (determine-code-value sig ftype cfg-map))]
-    (if-let [constr (ctor-fn ftype value)]
-      `((~fname [_#] (~constr ~value)))
-      `((~fname [_#] ~value)))))
+    `((~fname [_#] ~value))))
 
 
 (defn- remove-prefix

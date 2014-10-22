@@ -1,5 +1,4 @@
-(ns properties.type-support
-  (:import [clojure.lang IFn]))
+(ns properties.type-support)
 
 
 (defmulti implicit-default
@@ -18,7 +17,8 @@
 
 (defmulti ^Boolean type?
   "This multimethod acts as a predicate to detect if a given value has a given type. If the type
-   has no method, the result will be true.
+   has no method, the result will check the type of the value to see if it is a subtype of the
+   dispatch type.
 
    Parameters:
      prop-type - the type the value should have
@@ -28,21 +28,22 @@
      It returns true, if the value is of the correct type, otherwise false."
   (fn [prop-type value] prop-type))
 
-(defmethod type? :default [_ _] true)
+(defmethod type? :default [prop-type value] (isa? (type value) prop-type))
 
 
-(defmulti ^IFn from-str-fn
-  "Given a type, this multimethod looks up a function for converting a string to a value of that
-   type. If the type has no method, the result the identity function will be returned.
+(defmulti from-str
+  "Given a type, this multimethod converts a string to a value of that type. If the type has no
+   method, the result the identity function will be returned.
 
    Parameters:
-     prop-type - the type used to find the conversion function
+     prop-type - the type used to dispatch on
+     str-val   - the string to parse
 
    Returns:
-     It returns a conversion function. The function has the form (^prop-type fn [^String])."
-  (fn [prop-type] prop-type))
+     It returns the value from the string."
+  (fn [prop-type ^String str-val] prop-type))
 
-(defmethod from-str-fn :default [_] 'identity)
+(defmethod from-str :default [_ str-val] str-val)
 
 
 (defmulti as-code

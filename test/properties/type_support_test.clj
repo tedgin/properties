@@ -5,13 +5,13 @@
             [properties.core :as prop]))
 
 
-(defprotocol IsPair
+(defprotocol IsIntPair
   (fst [_])
   (snd [_]))
 
 
 (deftype IntPair [_1 _2]
-  IsPair
+  IsIntPair
   (fst [_] _1)
   (snd [_] _2))
 
@@ -26,20 +26,19 @@
   (isa? (type value) IntPair))
 
 
-(defmethod from-str-fn IntPair
-  [_]
-  (fn [str-val]
-    (let [[str-1 str-2] (-> str-val
-                          str/trim
-                          (str/replace #"^\((.*)\)$" "$1")
-                          str/trim
-                          (str/split #"  *" 2))]
-      (IntPair. (Integer/parseInt str-1) (Integer/parseInt str-2)))))
+(defmethod from-str IntPair
+  [_ str-val]
+  (let [[str-1 str-2] (-> str-val
+                        str/trim
+                        (str/replace #"^\((.*)\)$" "$1")
+                        str/trim
+                        (str/split #"  *" 2))]
+    (IntPair. (Integer/parseInt str-1) (Integer/parseInt str-2))))
 
 
 (defmethod as-code IntPair
   [pair]
-  (str "(" (fst pair) " " (snd pair) ")"))
+  `(IntPair. ~(fst pair) ~(snd pair)))
 
 
 (defprotocol CustomType
