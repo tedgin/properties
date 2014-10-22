@@ -13,7 +13,7 @@ It supports default values, so that the properties file only needs the values th
 (defprotocol MyProperties
 
  (^{:property "subsystem.property" :default 5}
-  ^int subsystem-property [_]))
+  ^BigInt subsystem-property [_]))
 ```
 
 ### Implicit Defaults
