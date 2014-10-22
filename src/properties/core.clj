@@ -51,18 +51,13 @@
 (defn- resolve-value
   [value prop-type]
   (let [bad #(throw (RuntimeException. (str value " does not have type " prop-type)))]
-    (cond
-      (types/type? prop-type value)
-      value
-
-      (string? value)
-      (try
-        (types/from-str prop-type value)
-        (catch Throwable _
-          (bad)))
-
-      :else
-      (bad))))
+    (try  
+      (cond
+        (types/type? prop-type value) value
+        (string? value)               (types/from-str prop-type value)
+        :else                         (bad))
+      (catch Throwable _
+        (bad)))))
 
 
 (defn- property
