@@ -52,7 +52,7 @@
 
 
 (facts "new types can be supported"
-  (let [obj (prop/->default CustomType)]
+  (let [obj (prop/mk-default CustomType)]
     (fact "new type has correct implicit default"
       (let [p (implicit obj)]
         [(fst p) (snd p)] => [0 0]))

@@ -19,3 +19,11 @@ It supports default values, so that the properties file only needs the values th
 ### Implicit Defaults
 
 *TODO complete section*
+
+## Property Precedence
+
+ * implicit defaults
+ * defaults
+ * environment variables
+ * property file
+ * command line arguments

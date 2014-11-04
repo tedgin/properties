@@ -25,7 +25,7 @@
              :boolean true
              :int     42
              :url     (io/as-url "http://localhost")}
-        obj (->from property-str src)]
+        obj (mk-from-source property-str src)]
     (fact "a string property can be retrieved from a source map"
       (str-property-string obj) => (:string src))
     (fact "a boolean property can be retrieved from a source map"
@@ -40,7 +40,7 @@
              "boolean" true
              "int"     42
              "url"     (io/as-url "http://localhost")}
-        obj (->from property-str src)]
+        obj (mk-from-source property-str src)]
     (fact "a string property can be retrieved from a source map"
       (str-property-string obj) => (get src "string"))
     (fact "a boolean property can be retrieved from a source map"
@@ -69,7 +69,7 @@
              :boolean true
              :int     42
              :url     (io/as-url "http://localhost")}
-        obj (->from property-key src)]
+        obj (mk-from-source property-key src)]
     (fact "a string property can be retrieved from a source map"
       (key-property-string obj) => (:string src))
     (fact "a boolean property can be retrieved from a source map"
@@ -96,7 +96,7 @@
               (.setProperty "boolean" "true")
               (.setProperty "int" "4")
               (.setProperty "url" "http://localhost"))
-        obj (->from properties src)]
+        obj (mk-from-source properties src)]
     (fact "a string value is correct"
       (property-string obj) => "string")
     (fact "a boolean value is correct"
@@ -108,7 +108,7 @@
 
 (fact "a property object can be instantiated from something clojure.java.io/reader can resolve"
   (let [src (char-array "string = string")
-        obj (->from properties src)]
+        obj (mk-from-source properties src)]
     (property-string obj) => "string"))
 
 
@@ -126,7 +126,7 @@
   (let [src {:source      "source"
              :no-property "source"
              :other       "other"}
-        obj (->from mixed src)]
+        obj (mk-from-source mixed src)]
     (fact "source is preferred to default"
       (source obj) => "source")
     (fact "default is used when source missing property"
@@ -144,7 +144,7 @@
 
 (facts "prefixes are correctly removed"
   (let [src {:prefix.prefixed "source" :unprefixed "source"}
-        obj (->from base-properties src :prefix)]
+        obj (mk-from-source base-properties src :prefix)]
     (fact "a prefixed property name will have the prefix removed"
       (prefixed obj) => "source")
     (fact "an unprefixed property will use the default"

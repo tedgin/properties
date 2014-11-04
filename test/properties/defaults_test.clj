@@ -10,7 +10,7 @@
   (implicit-str [_]))
 
 (fact "a property without type hint is assumed to be a string"
-  (implicit-str (->default ImplicitType)) => string?)
+  (implicit-str (mk-default ImplicitType)) => string?)
 
 
 (defprotocol ImplicitDefaults
@@ -20,7 +20,7 @@
   (^URL implicit-default-url [_]))
 
 (facts "about implicit default values"
-  (let [props (->default ImplicitDefaults)]
+  (let [props (mk-default ImplicitDefaults)]
     (fact "the implicit default for a string property is the empty string"
       (implicit-default-string props) => "")
     (fact "the implicit default for a boolean property is false"
@@ -45,7 +45,7 @@
    ^URL good-url [_]))
 
 (facts "default values are correct"
-  (let [props (->default GoodDefaults)]
+  (let [props (mk-default GoodDefaults)]
     (fact "string has correct default"
       (good-string props) => "good")
     (fact "boolean has correct default"
@@ -62,7 +62,7 @@
 
 (fact
   "a protocol with a string function having a default value that isn't a string will throw an exception on instantiation."
-  (->default BadStringDefault) => (throws Throwable))
+  (mk-default BadStringDefault) => (throws Throwable))
 
 
 (defprotocol BadBoolDefault
@@ -71,7 +71,7 @@
 
 (fact
   "a protocol with a boolean function having a default value that isn't a boolean will throw an exception on instantiation."
-  (->default BadBoolDefault) => (throws Throwable))
+  (mk-default BadBoolDefault) => (throws Throwable))
 
 
 (defprotocol BadIntDefault
@@ -80,7 +80,7 @@
 
 (fact
   "a protocol with an int function having a default value that isn't an int will throw an exception on instantiation."
-  (->default BadIntDefault) => (throws Throwable))
+  (mk-default BadIntDefault) => (throws Throwable))
 
 
 (defprotocol BadURLDefault
@@ -89,4 +89,4 @@
 
 (fact
   "a protocol with a URL function having a default value that isn't a URL will throw an exception on instantiation."
-  (->default BadURLDefault) => (throws Throwable))
+  (mk-default BadURLDefault) => (throws Throwable))

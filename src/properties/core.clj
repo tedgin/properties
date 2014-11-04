@@ -1,6 +1,7 @@
 (ns properties.core
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
+            [environ.core :as env]
             [properties.type-support :as types])
   (:import [clojure.lang BigInt IPersistentMap]
            [java.io Reader]
@@ -39,6 +40,11 @@
 (defmethod types/as-code URL [url] `(io/as-url ~(str url)))
 
 
+(defn- map-properties
+  [op props]
+  (apply hash-map (mapcat op props)))
+
+
 (defn- determine-type
   [fn-sig]
   (let [type-sym (:tag fn-sig)]
@@ -51,7 +57,7 @@
 (defn- resolve-value
   [value prop-type]
   (let [bad #(throw (RuntimeException. (str value " does not have type " prop-type)))]
-    (try  
+    (try
       (cond
         (types/type? prop-type value) value
         (string? value)               (types/from-str prop-type value)
@@ -60,9 +66,19 @@
         (bad)))))
 
 
+(defn- canonical-name
+  [prop-name]
+  (when prop-name
+    (-> prop-name
+      name
+      str/lower-case
+      (str/replace #"[\._]" "-")
+      keyword)))
+
+
 (defn- property
   [fn-sig]
-  (when-let [p (:property fn-sig)] (name p)))
+  (canonical-name (:property fn-sig)))
 
 
 (defn- determine-code-value
@@ -83,29 +99,51 @@
     `((~fname [_#] ~value))))
 
 
-(defn- remove-prefix
-  [prefix [prop value]]
-  (let [pattern (re-pattern (str "^" (name prefix) "\\.(.*)$"))]
-    (when-let [[_ base-prop] (re-matches pattern prop)]
-      [base-prop value])))
-
-
-(defn- protocol-from-map
-  [protocol cfg-map prefix]
-  (let [cfg-map  (if prefix
-                   (apply hash-map (mapcat #(remove-prefix prefix %) cfg-map))
-                   cfg-map)
-        protoSym (.sym (:var protocol))
+(defn- mk
+  [protocol cfg-map]
+  (let [protoSym (.sym (:var protocol))
         fn-defs  (map #(prep-fn % cfg-map) (vals (:sigs protocol)))]
     (eval (apply concat `(reify ~protoSym) fn-defs))))
 
 
-(defn- protocol-from-properties
-  [protocol props prefix]
-  (protocol-from-map protocol (into {} props) prefix))
+(defn- remove-prefix
+  [prefix [prop value]]
+  (if-not prefix
+    [prop value]
+    (let [prefix  (name (canonical-name prefix))
+          pattern (re-pattern (str "^" prefix "-(.*)$"))]
+      (when-let [[_ base] (re-matches pattern (name prop))]
+        [(keyword base) value]))))
 
 
-(defn ->default
+(defmulti ^:private resolve-source type)
+
+(defmethod resolve-source :default
+  [source]
+  (with-open [rdr (io/reader source)]
+    (into {} (doto (Properties.) (.load rdr)))))
+
+(defmethod resolve-source IPersistentMap
+  [properties]
+  properties)
+
+(defmethod resolve-source Properties
+  [properties]
+  (into {} properties))
+
+
+(defn- canonical-property
+  [[prop-name prop-val]]
+  [(canonical-name prop-name) prop-val])
+
+
+(defn- get-source-props
+  [source prefix]
+  (letfn [(fmt-prop [prop] (remove-prefix prefix (canonical-property prop)))]
+    (map-properties fmt-prop (resolve-source source))))
+
+
+(defn mk-default
   "Instantiates a properties object that implements the given protocol where each function returns
    its default value.
 
@@ -113,44 +151,109 @@
      protocol - the protocol mapping
 
    Returns:
-     It returns the properties object."
+     It returns the properties object.
+
+   Throws:
+     It will throw an exception if any of the default property values cannot be coerced to the
+     property type."
   [protocol]
-  (protocol-from-map protocol {} nil))
+  (mk protocol {}))
 
 
-(defn- load-properties
-  [source]
-  (with-open [rdr (io/reader source)]
-    (doto (Properties.) (.load rdr))))
+(defn mk-from-source
+  "Instantiates a properties object that implements the given protocol where the given property
+   source is referenced to determine the property values. If the function has :property metadata,
+   the source is inspected for that property. If found, the function will use the corresponding
+   value. Otherwise, it will use the default value.
 
-
-(defmulti ->from
-  "Instantiates a properties object that implements the given protocol where the given source is
-   referenced for the function return values. If the function has a :property metadata, the source
-   is inspected for that property. If found, the function will use the corresponding value.
-   Otherwise, it will use the default value.
+   The environment variables and command line arguments are not considered when determining the
+   values of the properties.
 
    Params:
      protocol - the protocol mapping
-     source   - the source of the property values. It may be a map, a java.util.Properties object
-                or anything clojure.java.io/reader can resolve.
+     source   - a provided source for properties, usually a properties files. It may be a map, a
+                `java.util.Properties` object, or anything `clojure.java.io/reader` can resolve.
      prefix   - (OPTIONAL) If this parameter is provided, the source will be filtered for
                 properties whose names begin with `<prefix>.`. The dotted prefix will then be
                 removed from the property names.
 
    Returns:
-     It returns the properties object."
-  (fn [protocol source & [prefix]] (type source)))
+     It returns the properties object.
 
-(defmethod ->from IPersistentMap
-  [protocol properties & [prefix]]
-  (letfn [(str-key [[k v]] [(name k) v])]
-    (protocol-from-map protocol (apply hash-map (mapcat str-key properties)) prefix)))
+   Throws:
+     It will throw an exception if any of the resolved property values cannot be coerced to the
+     property type."
+  [protocol source & [^String prefix]]
+  (mk protocol (get-source-props source prefix)))
 
-(defmethod ->from Properties
-  [protocol properties & [prefix]]
-  (protocol-from-properties protocol properties prefix))
 
-(defmethod ->from :default
-  [protocol source & [prefix]]
-  (protocol-from-properties protocol (load-properties source) prefix))
+(defn- prefix-name
+  [prefix prop-name]
+  (if prefix
+    (str (name prefix) "." prop-name)
+    prop-name))
+
+
+(defn- lookup-env-prop
+  [prefix prop-name]
+  (when prop-name
+    (let [env-name (canonical-name (prefix-name prefix prop-name))
+          value    (env/env env-name)]
+      (when value
+        (remove-prefix prefix [env-name value])))))
+
+
+(defn- get-env-props
+  [protocol prefix]
+  (let [sigs (vals (:sigs protocol))]
+    (map-properties #(lookup-env-prop prefix (:property %)) sigs)))
+
+
+(defn- resolve-arg-prop
+  [prefix arg]
+  (let [[prop-name prop-val] (str/split arg #"=" 2)]
+    (when prop-val
+      [(canonical-name prop-name) prop-val])))
+
+
+(defn- get-cmd-line-props
+  [cl-args]
+  (map-properties resolve-arg-prop cl-args))
+
+
+(defn mk-properties
+  "Instantiates a properties object that implements the given protocol where JVM system properties,
+   environment variables, the given property source, and command line arguments are referenced to
+   determine the property values. If a function declared in the protocol has :property metadata, the
+   value of the property is found by looking in the potential sources in the following order.
+
+     1) command line arguments
+     2) the property source
+     3) environment variables
+     4) JVM system properties
+
+   The first value found is the value that will be used. If no value is found, the default for the
+   property will be used.
+
+   Params:
+     protocol - the protocol mapping
+     source   - (OPTIONAL) a provided source for properties, usually a properties files. It may be a
+                map, a `java.util.Properties` object, or anything `clojure.java.io/reader` can
+                resolve.
+     cl-args  - (OPTIONAL) The command line arguments as passed into `-main`.
+     prefix   - (OPTIONAL) If this parameter is provided, the JVM system properties, environment
+                variables and the source will be filtered for properties whose names begin with
+                `<prefix>.`. The dotted prefix will then be removed from the property names.
+
+   Returns:
+     It returns the properties object.
+
+   Throws:
+     It will throw an exception if any of the resolved property values cannot be coerced to the
+     property type."
+  [protocol & {:keys [source cl-args prefix] :or {source {} cl-args []}}]
+  (let [env-props      (get-env-props protocol prefix)
+        src-props      (get-source-props source prefix)
+        cmd-line-props nil #_(get-cmd-line-props cl-args)
+        resolved-props (merge env-props src-props cmd-line-props)]
+    (mk protocol resolved-props)))
