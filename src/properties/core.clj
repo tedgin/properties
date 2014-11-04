@@ -210,7 +210,7 @@
 
 
 (defn- resolve-arg-prop
-  [prefix arg]
+  [arg]
   (let [[prop-name prop-val] (str/split arg #"=" 2)]
     (when prop-val
       [(canonical-name prop-name) prop-val])))
@@ -254,6 +254,6 @@
   [protocol & {:keys [source cl-args prefix] :or {source {} cl-args []}}]
   (let [env-props      (get-env-props protocol prefix)
         src-props      (get-source-props source prefix)
-        cmd-line-props nil #_(get-cmd-line-props cl-args)
+        cmd-line-props (get-cmd-line-props cl-args)
         resolved-props (merge env-props src-props cmd-line-props)]
     (mk protocol resolved-props)))

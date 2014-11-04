@@ -22,8 +22,10 @@ It supports default values, so that the properties file only needs the values th
 
 ## Property Precedence
 
+ * LOWEST
  * implicit defaults
  * defaults
  * environment variables
  * property file
  * command line arguments
+ * HIGHEST
