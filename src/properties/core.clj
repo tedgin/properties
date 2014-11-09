@@ -55,8 +55,8 @@
 
 
 (defn- resolve-value
-  [value prop-type]
-  (let [bad #(throw (RuntimeException. (str value " does not have type " prop-type)))]
+  [sig value prop-type]
+  (let [bad #(throw (RuntimeException. (str value " for " (:name sig) " does not have type " prop-type)))]
     (try
       (cond
         (types/type? prop-type value) value
@@ -82,20 +82,40 @@
 
 
 (defn- determine-code-value
-  [fn-sig prop-type cfg-map]
-  (let [cfg-val     (eval (get cfg-map (property fn-sig)))
-        default-val (eval (:default fn-sig))]
+  [sig cfg-map]
+  (let [prop-type   (determine-type sig)
+        cfg-val     (eval (get cfg-map (property sig)))
+        default-val (eval (:default sig))]
     (cond
-      cfg-val     (resolve-value cfg-val prop-type)
-      default-val (resolve-value default-val prop-type)
+      cfg-val     (resolve-value sig cfg-val prop-type)
+      default-val (resolve-value sig default-val prop-type)
       :else       (types/implicit-default prop-type))))
+
+
+(defn- sanitize-validator-call
+  [validator-sym value]
+  (try
+    (eval `(~validator-sym ~value))
+    (catch Throwable t
+      (throw (RuntimeException. (str validator-sym " must be a no-throw predicate that accepts a "
+                                     "single argument of type " (type value))
+                                t)))))
+
+
+(defn- validate-value
+  [sig value]
+  (when-let [validator-sym (:validator sig)]
+    (when-not (sanitize-validator-call validator-sym value)
+      (throw (RuntimeException. (str value " failed property " (:name sig) " validation.")))))
+  value)
 
 
 (defn- prep-fn
   [sig cfg-map]
   (let [fname (:name sig)
-        ftype (determine-type sig)
-        value (types/as-code (determine-code-value sig ftype cfg-map))]
+        value (->> (determine-code-value sig cfg-map)
+                (validate-value sig)
+                types/as-code)]
     `((~fname [_#] ~value))))
 
 
