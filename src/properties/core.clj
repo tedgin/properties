@@ -147,6 +147,10 @@
   [properties]
   properties)
 
+(defmethod resolve-source nil
+  [_]
+  {})
+
 (defmethod resolve-source Properties
   [properties]
   (into {} properties))
@@ -260,7 +264,7 @@
      source   - (OPTIONAL) a provided source for properties, usually a properties files. It may be a
                 map, a `java.util.Properties` object, or anything `clojure.java.io/reader` can
                 resolve.
-     cl-args  - (OPTIONAL) The command line arguments as passed into `-main`.
+     argv     - (OPTIONAL) The command line arguments as passed into `-main`.
      prefix   - (OPTIONAL) If this parameter is provided, the JVM system properties, environment
                 variables and the source will be filtered for properties whose names begin with
                 `<prefix>.`. The dotted prefix will then be removed from the property names.
@@ -271,9 +275,9 @@
    Throws:
      It will throw an exception if any of the resolved property values cannot be coerced to the
      property type."
-  [protocol & {:keys [source cl-args prefix] :or {source {} cl-args []}}]
+  [protocol & {:keys [source argv prefix]}]
   (let [env-props      (get-env-props protocol prefix)
         src-props      (get-source-props source prefix)
-        cmd-line-props (get-cmd-line-props cl-args)
+        cmd-line-props (get-cmd-line-props argv)
         resolved-props (merge env-props src-props cmd-line-props)]
     (mk protocol resolved-props)))

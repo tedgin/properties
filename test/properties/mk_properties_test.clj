@@ -29,7 +29,7 @@
 
 (fact "command line is most preferred"
   (let [src {:java.version "src"}
-        obj (mk-properties environ-property :source src :cl-args ["java.version=cl"])]
+        obj (mk-properties environ-property :source src :argv ["java.version=cl"])]
     (sys-string obj) => "cl"))
 
 
@@ -45,7 +45,7 @@
 
 (facts "prefix is handled properly"
   (let [src {:java.src-base "src"}
-        obj (mk-properties prefixed-property :source src :cl-args ["java-cl=cl"] :prefix :java)]
+        obj (mk-properties prefixed-property :source src :argv ["java-cl=cl"] :prefix :java)]
     (fact "prefix is removed from environ property"
       (sys-string2 obj) => (System/getProperty "java.version"))
     (fact "prefix is removed from source property"
