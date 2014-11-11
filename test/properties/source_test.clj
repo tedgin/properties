@@ -144,7 +144,7 @@
 
 (facts "prefixes are correctly removed"
   (let [src {:prefix.prefixed "source" :unprefixed "source"}
-        obj (mk-from-source base-properties src :prefix)]
+        obj (mk-from-source base-properties src :prefix :prefix)]
     (fact "a prefixed property name will have the prefix removed"
       (prefixed obj) => "source")
     (fact "an unprefixed property will use the default"

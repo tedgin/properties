@@ -207,7 +207,7 @@
    Throws:
      It will throw an exception if any of the resolved property values cannot be coerced to the
      property type."
-  [protocol source & [^String prefix]]
+  [protocol source & {:keys [prefix]}]
   (mk protocol (get-source-props source prefix)))
 
 
