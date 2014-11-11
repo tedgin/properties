@@ -113,8 +113,9 @@ refer to the same source property.
 
 The precedence of the property is determined as follows:
 
-* command line arguments (_highest_)
-* other source like Java properties file
-* JVM system properties
-* environment variables
-* defaults (_lowest_)
+1. command line arguments (_highest_)
+1. other source like Java properties file
+1. JVM system properties
+1. environment variables
+1. .lein-env file in project directory
+1. defaults (_lowest_)
