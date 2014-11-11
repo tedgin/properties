@@ -2,10 +2,10 @@
 
 Built on top of
 [weavejester's environ library](https://github.com/weavejester/environ), this
-library unifies property determination into a single interface that supports but
-does not require type checking and validation. It currently supports retrieving
-configuration values from command line arguments, environment variables, JVM
-system properties, and Java system properties.
+library unifies property determination into a single interface that supports,
+but does not require, type checking and validation. It currently supports
+retrieving configuration values from command line arguments, environment
+variables, JVM system properties, and Java system properties.
 
 
 ## example.clj
