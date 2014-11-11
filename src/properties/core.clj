@@ -168,8 +168,8 @@
 
 
 (defn mk-default
-  "Instantiates a properties object that implements the given protocol where each function returns
-   its default value.
+  "Instantiates a properties object that implements the given protocol where
+   each function returns its default value.
 
    Params:
      protocol - the protocol mapping
@@ -178,35 +178,38 @@
      It returns the properties object.
 
    Throws:
-     It will throw an exception if any of the default property values cannot be coerced to the
-     property type."
+     It will throw an exception if any of the default property values cannot be
+     coerced to the property type."
   [protocol]
   (mk protocol {}))
 
 
 (defn mk-from-source
-  "Instantiates a properties object that implements the given protocol where the given property
-   source is referenced to determine the property values. If the function has :property metadata,
-   the source is inspected for that property. If found, the function will use the corresponding
-   value. Otherwise, it will use the default value.
+  "Instantiates a properties object that implements the given protocol where the
+   given property source is referenced to determine the property values. If the
+   function has :property metadata, the source is inspected for that property.
+   If found, the function will use the corresponding value. Otherwise, it will
+   use the default value.
 
-   The environment variables and command line arguments are not considered when determining the
-   values of the properties.
+   The environment variables and command line arguments are not considered when
+   determining the values of the properties.
 
    Params:
      protocol - the protocol mapping
-     source   - a provided source for properties, usually a properties files. It may be a map, a
-                `java.util.Properties` object, or anything `clojure.java.io/reader` can resolve.
-     prefix   - (OPTIONAL) If this parameter is provided, the source will be filtered for
-                properties whose names begin with `<prefix>.`. The dotted prefix will then be
-                removed from the property names.
+     source   - a provided source for properties, usually a properties file. It
+                may be a map, a `java.util.Properties` object, or anything
+                `clojure.java.io/reader` can resolve into a map.
+     prefix   - (OPTIONAL) If this parameter is provided, the source will be
+                filtered for properties whose names begin with
+                `<prefix>(-|.|_)`. The punctuated prefix will then be removed
+                from the property names before lookup.
 
    Returns:
      It returns the properties object.
 
    Throws:
-     It will throw an exception if any of the resolved property values cannot be coerced to the
-     property type."
+     It will throw an exception if any of the resolved property values cannot be
+     coerced to the property type or fail validation."
   [protocol source & {:keys [prefix]}]
   (mk protocol (get-source-props source prefix)))
 
@@ -246,35 +249,38 @@
 
 
 (defn mk-properties
-  "Instantiates a properties object that implements the given protocol where JVM system properties,
-   environment variables, the given property source, and command line arguments are referenced to
-   determine the property values. If a function declared in the protocol has :property metadata, the
-   value of the property is found by looking in the potential sources in the following order.
+  "Instantiates a properties object that implements the given protocol where JVM
+   system properties, environment variables, the given property source, and
+   command line arguments are referenced to determine the property values. If a
+   function declared in the protocol has :property metadata, the value of the
+   property is found by looking in the potential sources in the following order.
 
      1) command line arguments
      2) the property source
      3) environment variables
      4) JVM system properties
 
-   The first value found is the value that will be used. If no value is found, the default for the
-   property will be used.
+   The first value found is the value that will be used. If no value is found,
+   the default for the property will be used.
 
    Params:
      protocol - the protocol mapping
-     source   - (OPTIONAL) a provided source for properties, usually a properties files. It may be a
-                map, a `java.util.Properties` object, or anything `clojure.java.io/reader` can
-                resolve.
+     source   - (OPTIONAL) a provided source for properties, usually a
+                properties file. It may be a map, a `java.util.Properties`
+                object, or anything `clojure.java.io/reader` can resolve into a
+                map.
      argv     - (OPTIONAL) The command line arguments as passed into `-main`.
-     prefix   - (OPTIONAL) If this parameter is provided, the JVM system properties, environment
-                variables and the source will be filtered for properties whose names begin with
-                `<prefix>.`. The dotted prefix will then be removed from the property names.
+     prefix   - (OPTIONAL) If this parameter is provided, the source will be
+                filtered for properties whose names begin with
+                `<prefix>(-|.|_)`. The punctuated prefix will then be removed
+                from the property names before lookup.
 
    Returns:
      It returns the properties object.
 
    Throws:
-     It will throw an exception if any of the resolved property values cannot be coerced to the
-     property type."
+     It will throw an exception if any of the resolved property values cannot be
+     coerced to the property type or fail validation."
   [protocol & {:keys [source argv prefix]}]
   (let [env-props      (get-env-props protocol prefix)
         src-props      (get-source-props source prefix)

@@ -1,19 +1,20 @@
 # properties
 
-This library is intended to unify property determination into a single interface
-that supports but does not require type checking and validation. It currently
-supports retrieving configuration values from command line arguments,
-environment variables, JVM system properties, and Java system properties.
+Built on top of
+[weavejester's environ library](https://github.com/weavejester/environ), this
+library unifyies property determination into a single interface that supports
+but does not require type checking and validation. It currently supports
+retrieving configuration values from command line arguments, environment
+variables, JVM system properties, and Java system properties.
 
 
 ## example.clj
 
 ```clojure
 (ns example
-  :require [properties.core :as prop]
+  :require [properties.core :as props]
   :import  [clojure.lang BigInt]
            [java.net URL])
-
 
 (defprotocol example-properties
   "Here is an example of declaring a set of property values."
@@ -26,19 +27,13 @@ environment variables, JVM system properties, and Java system properties.
     :validator provides a predicate for validating the property value. ^String
     indicates that the property will be interpreted as a string.")
 
-  (^{:property "string-2"}
-   string [_]
-   "This example shows that most of the metadata don't need to be provided. If
-    :default isn't provided, an implicit default will be used. For strings, the
-    implicit default is the empty string, \"\". If :validator isn't provided, no
-    validation will be performed.  If a type hint (tag) isn't provided, the
-    property will be stored in a string.
-
-    The next example demonstrates that none of the metadata are required. If
-    :property isn't provided, no source other than the provided metadata and
-    their implicit values will be used.")
-
-  (unannotated-string [_])
+  (unannotated-string [_]
+   "This example shows that none of the metadata are required. If :property
+    isn't provided, no source other than the provided metadata and their
+    implicit values will be used. If :default isn't provided, an implicit
+    default will be used. For strings, the implicit default is the empty string
+    (\"\"). If :validator isn't provided, no validation will be performed. If a
+    type hint (tag) isn't provided, the property will be considered a string.")
 
   (^BigInt integer [_]
    "This is an example of an integer property declaration. The implicit default
@@ -49,9 +44,8 @@ environment variables, JVM system properties, and Java system properties.
     value of a Boolean is false.")
 
   (^URL url [_]
-   "This is an example of a URL (java.net/URL) property declaration. The
+   "This is an example of a URL (java.net.URL) property declaration. The
     implicit default value of a URL is nil."))
-
 
 (defn ->default
   "This function instantiates example-properties with each property has its
@@ -59,15 +53,12 @@ environment variables, JVM system properties, and Java system properties.
   []
   (props/mk-default example-properties))
 
-
 (defn ->from-environ
-  "Underneath, this library uses weavejester's environ library to extract the
-   properties that come from the environment variables and JVM system
-   properties. This function instantiates example-properties using only these
-   two sources."
+  "Underneath, this library uses environ to extract the properties that come
+   from the environment variables and JVM system properties. This function
+   instantiates example-properties using only these two sources."
   []
   (props/mk-properties example-properties))
-
 
 (defn ->from-environ-and-cmd-line
   [argv]
@@ -76,15 +67,13 @@ environment variables, JVM system properties, and Java system properties.
    the :argv keyword parameter."
   (props/mk-properties example-properties :argv argv))
 
-
 (defn ->from-environ-and-properties
   "To override the environ extracted properties with values provided by another
    source other than the command line, pass the source into mk-properties as the
-   :source keyword parameter. The source may be a map, a java.util/Properties
+   :source keyword parameter. The source may be a map, a java.util.Properties
    object, or anything clojure.java.io/reader can parse into a map."
   [src]
   (props/mk-properties example-properties :source src))
-
 
 (defn ->from-everywhere
   "Of course both the command line and another source may be used to override
@@ -93,36 +82,39 @@ environment variables, JVM system properties, and Java system properties.
   [src argv]
   (props/mk-properties example-properties :source src :argv argv))
 
-
 (defn ->from-source-only
   "The values extracted from environ need not be used. This function uses values
    taken from a source other than environ or the command line."
-   [src]
-   (props/mk-from-source example-properties src))
+  [src]
+  (props/mk-from-source example-properties src))
+
+(defn ->with-prefix
+  "Properties coming from a source often have a prefix used to namespace the set
+   of properties. This prefix can be used as a filter and will resolve to the
+   base property name defined by the :prefix metadata value in the property
+   definition. For example, if the prefix is `ns-1` the property defined in the
+   source as `ns-1-url` would map to the `url` property, and the source property
+   `ns-2-bool` would be ignored. The :prefix keyword parameter can be used to
+   provide this prefix."
+  [prefix]
+  (props/mk-properties example-properties :prefix prefix))
 ```
 
-*TODO complete documentation*
 
-## Defaults
-It supports default values, so that the properties file only needs the values that have been customized. Here is an example of a default.
+## Property Names
 
-```clojure
-(defprotocol MyProperties
+The convention used by environ is used: All property names are case-insensitive,
+with hyphens (-), periods (.), and underscores (_) being treated as equivalent.
+For example, `PropertiesExample.my_prop` and `propertiesexample-my-prop` would
+refer to the same source property.
 
- (^{:property "subsystem.property" :default 5}
-  ^BigInt subsystem-property [_]))
-```
 
-### Implicit Defaults
+## Property Source Precedence
 
-*TODO complete section*
+The precedence of the property is determined as follows:
 
-## Property Precedence
-
- * LOWEST
- * implicit defaults
- * defaults
- * environment variables
- * property file
- * command line arguments
- * HIGHEST
+* command line arguments (_highest_)
+* other source like Java properties file
+* JVM system properties
+* environment variables
+* defaults (_lowest_)
