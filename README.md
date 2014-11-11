@@ -2,10 +2,10 @@
 
 Built on top of
 [weavejester's environ library](https://github.com/weavejester/environ), this
-library unifyies property determination into a single interface that supports
-but does not require type checking and validation. It currently supports
-retrieving configuration values from command line arguments, environment
-variables, JVM system properties, and Java system properties.
+library unifies property determination into a single interface that supports but
+does not require type checking and validation. It currently supports retrieving
+configuration values from command line arguments, environment variables, JVM
+system properties, and Java system properties.
 
 
 ## example.clj
@@ -104,9 +104,9 @@ variables, JVM system properties, and Java system properties.
 ## Property Names
 
 The convention used by environ is used: All property names are case-insensitive,
-with hyphens (-), periods (.), and underscores (_) being treated as equivalent.
-For example, `PropertiesExample.my_prop` and `propertiesexample-my-prop` would
-refer to the same source property.
+with hyphens (`-`), periods (`.`), and underscores (`_`) being treated as
+equivalent. For example, `PropertiesExample.my_prop` and
+`propertiesexample-my-prop` would refer to the same source property.
 
 
 ## Property Source Precedence
@@ -119,3 +119,50 @@ The precedence of the property is determined as follows:
 1. environment variables
 1. .lein-env file in project directory
 1. defaults (_lowest_)
+
+
+## Custom Type Support
+
+Custom types may be used with this library. To make a custom type usable by this
+library, four multimethods need to be implemented for the type. The methods are
+declared in the `properties.type-support` namespace.
+
+The `implicit-default` multimethod returns the default value to use for the
+custom type if no `:default` metadata value is provided as part of the
+declaration of a property of this custom type. If this multimethod is not
+implemented for the type, the implicit default value for properties of this type
+will be `nil`.
+
+The `type?` multimethod acts as a predicate to see if a given value has the
+custom type. If this multimethod is not implemented for a type, `isa?` will be
+used.
+
+The `from-str` multimethod constructs a value of a custom type from its string
+representation, the representation found in a Java properties file. If this
+multimethod is not implemented for a type, `read-string` will be used.
+
+The `as-code` multimethod prepares a value of a custom type for runtime code
+generation. If this multimethod is not implemented for a type, the value will be
+returned unaltered.
+
+Here is an example of adding support for the `Byte` class.
+
+```clojure
+(ns example-2
+  (:require [properties.type-support :as types]
+            [properties.core :as props]))
+
+(defmethod types/implicit-default Byte [_]
+  (byte 0))
+
+(defmethod types/from-str Byte [_ value]
+  (Byte. value))
+
+(defprotocol custom-property-type
+  (^{:property "byte"}
+   ^Byte byte-prop [_]))
+
+(defn mk
+  [src]
+  (props/mk-properties custom-property-type :source src))
+```
