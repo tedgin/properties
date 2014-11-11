@@ -2,23 +2,24 @@
 
 
 (defmulti implicit-default
-  "This multimethod returns the implicit default value for a given type. If the type has no method,
-   the multimethod returns nil.
+  "This multimethod returns the implicit default value for a given type. If the
+   type has no method, the multimethod returns nil.
 
    Parameters:
      prop-type - the type to find the implicit default for
 
    Returns:
-     It returns the implicit default value for the given type. If there isn't one, it returns nil."
+     It returns the implicit default value for the given type. If there isn't
+     one, it returns nil."
   (fn [prop-type] prop-type))
 
 (defmethod implicit-default :default [_] nil)
 
 
 (defmulti ^Boolean type?
-  "This multimethod acts as a predicate to detect if a given value has a given type. If the type
-   has no method, the result will check the type of the value to see if it is a subtype of the
-   dispatch type.
+  "This multimethod acts as a predicate to detect if a given value has a given
+   type. If the type has no method, the result will check the type of the value
+   to see if it is a subtype of the dispatch type.
 
    Parameters:
      prop-type - the type the value should have
@@ -32,8 +33,8 @@
 
 
 (defmulti from-str
-  "Given a type, this multimethod converts a string to a value of that type. If the type has no
-   method, the result the identity function will be returned.
+  "Given a type, this multimethod converts a string to a value of that type. If
+   the type has no method, the read-string function will be used.
 
    Parameters:
      prop-type - the type used to dispatch on
@@ -43,13 +44,13 @@
      It returns the value from the string."
   (fn [prop-type ^String str-val] prop-type))
 
-(defmethod from-str :default [_ str-val] str-val)
+(defmethod from-str :default [_ str-val] (read-string str-val))
 
 
 (defmulti as-code
-  "Given a value, this multimethod will prepare this value for runtime code generation. The
-   multimethod dispatches on the type of the value. If the type has no method, the value will be
-   returned unaltered.
+  "Given a value, this multimethod will prepare this value for runtime code
+   generation. The multimethod dispatches on the type of the value. If the type
+   has no method, the value will be returned unaltered.
 
    Parameters:
      value - the value to encode

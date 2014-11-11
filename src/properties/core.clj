@@ -5,7 +5,6 @@
             [properties.type-support :as types])
   (:import [clojure.lang BigInt IPersistentMap]
            [java.io Reader]
-           [java.math BigInteger]
            [java.net URL]
            [java.util Properties]))
 
@@ -21,16 +20,12 @@
 
 (defmethod types/implicit-default Boolean [_] false)
 
-(defmethod types/from-str Boolean [_ str-val] (boolean str-val))
-
 
 ; BigInt support
 
 (defmethod types/implicit-default BigInt [_] 0)
 
 (defmethod types/type? BigInt [_ value] (integer? value))
-
-(defmethod types/from-str BigInt [_ str-val] (BigInt/fromBigInteger (BigInteger. str-val)))
 
 
 ; URL support
