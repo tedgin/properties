@@ -1,5 +1,7 @@
 (defproject properties "0.0.0"
-  :description  "a DRY java properties wrapper with defaults and validation support"
+  :description  "A clojure library that unifies property determination into a single interface that 
+                 supports, but does not require, type checking and validation."
+  :license      {:name "Public Domain"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [environ "1.0.0"]]
   :plugins      [[lein-environ "1.0.0"]]
