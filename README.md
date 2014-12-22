@@ -12,9 +12,9 @@ variables, JVM system properties, and Java system properties.
 
 ```clojure
 (ns example
-  :require [properties.core :as props]
-  :import  [clojure.lang BigInt]
-           [java.net URL])
+  (:require [properties.core :as props])
+  (:import [clojure.lang BigInt]
+           [java.net URL]))
 
 (defprotocol example-properties
   "Here is an example of declaring a set of property values."
